@@ -1,0 +1,55 @@
+---
+- name: Create Instance
+  hosts: local
+  tasks:
+  - include_role:
+      name: create_instance
+    loop: "{{ instance_list }}"
+    vars:
+      instance_type: "{{ item }}"
+
+  - debug: var=request_ids
+
+  - debug: var=instance_ids
+
+  - debug: var=instance_ips
+
+- name: Collect Data
+  strategy: free
+  hosts: ec2spot
+  become: yes
+  become_user: root
+  tasks:
+  - include_role:
+      name: instance_collect_role
+  
+- name: Cleanup
+  hosts: localhost
+  tasks:
+  - name: Terminate instances
+    ec2_instance:
+      state: 'absent'
+      instance_ids: "{{ instance_ids[item] }}"
+      access_key: "{{ access_key }}"
+      secret_key: "{{ secret_key }}"
+      region: "{{ region }}"
+    loop: "{{ instance_list }}"
+    async: 60
+    poll: 0
+    register: terminate
+
+  - debug: var=terminate
+  
+  - name: Cancel reqeuest
+    amazon.aws.ec2_spot_instance:
+      state: 'absent'
+      spot_instance_request_ids: "{{ request_ids[item] }}"
+      access_key: "{{ access_key }}"
+      secret_key: "{{ secret_key }}"
+      region: "{{ region }}"
+    loop: "{{ instance_list }}"
+    async: 60
+    poll: 0
+    register: cancel
+
+  - debug: var=cancel

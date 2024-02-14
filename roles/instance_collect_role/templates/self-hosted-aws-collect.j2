@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: self-hosted-aws-collect
+spec:
+  timeouts:
+    pipeline: "6h"
+    tasks: "5h50m"
+  workspaces:
+  - name: mnt
+    persistentVolumeClaim:
+      claimName: task-pvc
+  params:
+  - name: MODEL_SERVER_IMAGE
+    value: {{ kepler_model_server_image }}
+  - name: COS_PROVIDER
+    value: aws
+  - name: COS_SECRET_NAME
+    value: aws-cos-secret
+  - name: MACHINE_ID
+    value: {{ instance_type }}-{{ ami_id }}
+  - name: STRESS_ARGS
+    value:
+    - "cpu;none;none"
+  - name: CPU_FREQUENCY_ENABLED
+    value: false
+  pipelineRef:
+    name: collect-data-pipeline

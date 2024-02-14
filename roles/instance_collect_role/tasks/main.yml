@@ -1,0 +1,108 @@
+---
+# tasks file for instance_collect_role
+- name: Copy install_package.sh
+  copy:
+    src: install_package.sh
+    dest: install_package.sh
+    mode: "0755"
+
+- name: Install package
+  script: ./install_package.sh
+  register: install_package
+
+- name: CheckOut kepler-model-server
+  git:
+    repo: 'https://github.com/sustainable-computing-io/kepler-model-server.git'
+    dest: kepler-model-server
+
+- name: Cluster Up
+  shell:
+    chdir: kepler-model-server/model_training
+    cmd: |
+      ./script.sh cluster_up
+      cp $HOME/bin/kubectl /usr/local/bin/kubectl
+  args:
+    executable: /bin/bash
+
+- name: Install Kepler
+  shell:
+    chdir: kepler-model-server/model_training
+    cmd: |
+      ./script.sh install_kepler
+      ./script.sh deploy_kepler
+      ./script.sh deploy_prom_dependency
+  args:
+    executable: /bin/bash
+
+- name: Install Tekton
+  shell:
+    chdir: kepler-model-server
+    cmd: |
+      kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+      ./hack/k8s_helper.sh rollout_ns_status tekton-pipelines
+      ./hack/k8s_helper.sh rollout_ns_status tekton-pipelines-resolvers
+      kubectl get po -A
+      kubectl logs $(kubectl get pods -oname -nkepler) -n kepler|grep "obtain power"
+  args:
+    executable: /bin/bash
+  register: install_dependency
+
+- debug: var=install_dependency.stdout_lines
+
+- name: Copy Secret Files
+  template:
+    src: aws-cos-secret.j2
+    dest: kepler-model-server/model_training/tekton/aws-cos-secret.yaml
+
+- name: Deploy resources
+  shell:
+    chdir: kepler-model-server/model_training/tekton
+    cmd: |
+      # deploy pvc
+      kubectl apply -f pvc/hostpath.yaml
+      # deploy secret 
+      kubectl apply -f aws-cos-secret.yaml
+      # deploy tasks and pipelines
+      kubectl apply -f tasks
+      kubectl apply -f tasks/s3
+      kubectl apply -f pipelines
+  args:
+    executable: /bin/bash
+  register: deploy_resources
+
+- debug: var=deploy_resources.stdout_lines
+
+- name: Install Jq
+  apt:
+    name: jq
+    state: present
+    update_cache: false
+
+- name: Copy PipelineRun Files
+  template:
+    src: self-hosted-aws-collect.j2
+    dest: kepler-model-server/model_training/tekton/self-hosted-aws-collect.yaml
+
+- name: Run Tekton Pipeline with S3Push
+  shell:
+    chdir: kepler-model-server
+    cmd: |
+        kubectl apply -f model_training/tekton/self-hosted-aws-collect.yaml
+        ./hack/k8s_helper.sh wait_for_pipelinerun self-hosted-aws-collect
+        kubectl get po
+  args:
+    executable: /bin/bash
+  register: run_tekton
+
+- debug: var=run_tekton.stdout_lines
+
+- name: Log S3Push
+  shell:
+    chdir: kepler-model-server
+    cmd: |
+        kubectl logs pod/self-hosted-aws-collect-aws-s3-push-pod
+  args:
+    executable: /bin/bash
+  register: log_push
+
+- debug: var=log_push.stdout_lines
