@@ -1,0 +1,12 @@
+secuirty_group: sg-cda39bb6
+volume_size: 120
+key_name: kepler-ci-key
+instance_list:
+- m5zn.metal 
+- i3.metal 
+- m5dn.metal
+- m5n.metal
+- c5d.metal 
+- c7i.metal-24xl
+- i3en.metal 
+- m7i.metal-24xl 

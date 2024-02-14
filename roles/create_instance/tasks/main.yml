@@ -1,0 +1,110 @@
+---
+# tasks file for create_instance
+
+- debug: var=instance_type
+
+- name: Get bid price
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ secret_key }}"
+  command: >
+    aws ec2 describe-spot-price-history --instance-types {{ instance_type }} \
+      --product-descriptions "Linux/UNIX" --region {{ region }} --query 'SpotPriceHistory[0].SpotPrice' --output text
+  register: bid_price
+  when: set_request_id is undefined
+
+- debug: var=bid_price.stdout
+  when: set_request_id is undefined
+  
+- name: Create a Spot Instance Request
+  amazon.aws.ec2_spot_instance:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    spot_price: "{{ bid_price.stdout | float * 1.1 }}"
+    launch_specification:
+      image_id: "{{ ami_id }}"
+      key_name: "{{ key_name }}"
+      instance_type: "{{ instance_type }}"
+      block_device_mappings:
+        - device_name: /dev/sda1
+          ebs:
+            delete_on_termination: True
+            volume_size: "{{ volume_size }}"
+      security_group_ids: "{{ secuirty_group }}"
+  register: create_result
+  when: set_request_id is undefined
+
+- debug: var=create_result.spot_request.spot_instance_request_id
+  when: set_request_id is undefined
+
+- name: Wait for request fullfilled
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ secret_key }}"
+  command: >
+    aws ec2 wait spot-instance-request-fulfilled --spot-instance-request-ids {{ create_result.spot_request.spot_instance_request_id }} --region {{ region }}
+  when: set_request_id is undefined
+
+- name: Set fact of set request id
+  set_fact:
+    request_id: "{{ set_request_id }}"
+  when: set_request_id is defined
+
+- name: Set fact of new request id 
+  set_fact:
+    request_id: "{{ set_request_id }}"
+  when: set_request_id is undefined
+
+- name: Get info about the spot instance request created
+  amazon.aws.ec2_spot_instance_info:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    spot_instance_request_ids: 
+    - "{{ request_id }}"
+  register: spot_instance_info_result
+
+- debug: msg={{ spot_instance_info_result.spot_request[0].instance_id }}
+
+- name: Set fact of request id and instance id
+  set_fact:
+    instance_id: "{{ spot_instance_info_result.spot_request[0].instance_id }}"
+
+- name: Wait for instance running
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ secret_key }}"
+  command: >
+    aws ec2 wait instance-running --instance-ids  {{ instance_id }} --region {{ region }}
+
+- name: Gather information about a particular instance using ID
+  amazon.aws.ec2_instance_info:
+    access_key: "{{ access_key }}"
+    secret_key: "{{ secret_key }}"
+    region: "{{ region }}"
+    instance_ids:
+    - "{{ instance_id }}"
+  register: instances
+    
+- debug: var=instances.instances[0].network_interfaces[0].association.public_ip
+
+- name: Set fact of request id and instance id
+  set_fact:
+    instance_ip: "{{ instances.instances[0].network_interfaces[0].association.public_ip }}"
+
+- name: Add host
+  add_host:
+    name: "{{ instance_ip }}"
+    groups: ec2spot
+    ansible_ssh_user: ubuntu
+    ansible_ssh_private_key_file: kepler-ci-key.pem
+    instance_type: "{{ instance_type }}"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ConnectionAttempts=3 -o ConnectTimeout=60"
+    ansible_ssh_extra_args: "-o UserKnownHostsFile=/dev/null"
+
+- name: Gather fact
+  set_fact:
+    request_ids: "{{ request_ids | default({}) | combine({instance_type: request_id}) }}"
+    instance_ids: "{{ instance_ids | default({}) | combine({instance_type: instance_id}) }}"
+    instance_ips: "{{ instance_ips | default({}) | combine({instance_type: instance_ip}) }}"
