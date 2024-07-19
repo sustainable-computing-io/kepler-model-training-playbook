@@ -53,7 +53,7 @@
 
 - name: Set fact of new request id 
   set_fact:
-    request_id: "{{ set_request_id }}"
+    request_id: "{{ create_result.spot_request.spot_instance_request_id }}"
   when: set_request_id is undefined
 
 - name: Get info about the spot instance request created

@@ -28,13 +28,14 @@
   shell:
     chdir: kepler-model-server/model_training
     cmd: |
-      ./script.sh install_kepler
       ./script.sh deploy_kepler
       ./script.sh deploy_prom_dependency
   args:
     executable: /bin/bash
 
 - name: Install Tekton
+  environment:
+    KUBECONFIG: /tmp/kubeconfig
   shell:
     chdir: kepler-model-server
     cmd: |
@@ -55,6 +56,8 @@
     dest: kepler-model-server/model_training/tekton/aws-cos-secret.yaml
 
 - name: Deploy resources
+  environment:
+    KUBECONFIG: /tmp/kubeconfig
   shell:
     chdir: kepler-model-server/model_training/tekton
     cmd: |
@@ -84,6 +87,8 @@
     dest: kepler-model-server/model_training/tekton/self-hosted-aws-collect.yaml
 
 - name: Run Tekton Pipeline with S3Push
+  environment:
+    KUBECONFIG: /tmp/kubeconfig
   shell:
     chdir: kepler-model-server
     cmd: |
@@ -97,6 +102,8 @@
 - debug: var=run_tekton.stdout_lines
 
 - name: Log S3Push
+  environment:
+    KUBECONFIG: /tmp/kubeconfig
   shell:
     chdir: kepler-model-server
     cmd: |
