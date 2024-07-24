@@ -25,7 +25,7 @@ Profile|Spot Price|v0.7.8|v0.7.11
 ---|---|---|---
 r6a.metal| 2.288300 | :x: (AMD)
 r6in.metal| 3.620800| :x: (AMD)
-m7i.metal-24xl| 1.295600|:white_check_mark:|
+m7i.metal-24xl| 1.295600|:white_check_mark:|:white_check_mark: 
 r7i.metal-48xl| 3.290300
 m5d.metal| 2.109100
 i4i.metal| 2.326700
@@ -44,7 +44,7 @@ r7i.metal-24xl| 1.839900
 r5dn.metal| 2.734300
 c6a.metal| 1.629900
 x2idn.metal| 1.333800
-r5.metal| 2.032400
+r5.metal| 2.032400||:white_check_mark: 
 c5.metal| 1.447500||:white_check_mark: 
 c6id.metal| 1.968700
 c5n.metal| 1.216100

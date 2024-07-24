@@ -6,10 +6,12 @@ instance_list:
 - m5zn.metal # multi-processor general-purpose fastest Intel Xeon Scalable processors with turbo boost
 - i3.metal # storage optimized High Frequency Intel Xeon Scalable Processors (Broadwell E5-2686 v4) with base frequency of 2.3 GHz
 - c5.metal # compute optimized
-# --------------------------------------
-# - m7i.metal-24xl
-# - c7i.metal-24xl  
+- r5.metal # memory optimized
+- m7i.metal-24xl
+# -------------------------------------- 
 # - i3en.metal
 # - m5n.metal # different from m5.metal only for network
 # - m5dn.metal # different from m5n.metal only the instance storage
 # - c5d.metal # different from c5.metal only the instance storage
+# - x2idn.metal
+# - c7i.metal-24xl  
