@@ -14,6 +14,12 @@
 
   - debug: var=instance_ips
 
+- name: Pause for 1 minute for instance to be ready
+  hosts: local
+  tasks:
+  - ansible.builtin.pause:
+      minutes: 1
+
 - name: Collect Data
   strategy: free
   hosts: ec2spot
@@ -24,7 +30,7 @@
       name: instance_collect_role
   
 - name: Cleanup
-  hosts: localhost
+  hosts: local
   tasks:
   - name: Terminate instances
     ec2_instance:
